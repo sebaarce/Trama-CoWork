@@ -47,7 +47,7 @@ function renderSummary(state: ReactionState): string {
 
 function renderTrigger(state: ReactionState, compact: boolean): string {
   const my = state.myReaction;
-  const emoji = my ? REACTION_META[my].emoji : '👍';
+  const emoji = my ? REACTION_META[my].emoji : REACTION_META.LIKE.emoji;
   const label = my ? REACTION_META[my].label : 'Recomendar';
   const activeClass = my ? 'text-primary font-bold' : 'text-on-surface-variant font-semibold';
   const size = compact ? 'text-[11px] px-1.5 py-0.5' : 'text-xs px-2 py-1';

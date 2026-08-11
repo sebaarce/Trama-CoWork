@@ -74,6 +74,7 @@ describe('helpers', () => {
   });
   it('commentTargetType mapea community/channel', () => {
     expect(commentTargetType('channel')).toBe('community_channel_comment');
+    expect(commentTargetType('community')).toBe('community_comment');
     expect(commentTargetType(undefined)).toBe('community_comment');
   });
 });
@@ -93,5 +94,13 @@ describe('red', () => {
     expect(spy).toHaveBeenCalledWith('/community/reactions/community_channel_comment/xyz');
     expect(state.myReaction).toBeNull();
     spy.mockRestore();
+  });
+  it('setReaction envía el header Authorization con el token', async () => {
+    const setHeaderSpy = vi.spyOn(api, 'setHeader');
+    const putSpy = vi.spyOn(api, 'put').mockResolvedValue({ reactions: {}, myReaction: null });
+    await setReaction('community_post', 'abc', 'LIKE');
+    expect(setHeaderSpy).toHaveBeenCalledWith('Authorization', 'Bearer tok-123');
+    setHeaderSpy.mockRestore();
+    putSpy.mockRestore();
   });
 });
