@@ -36,6 +36,7 @@ import DashboardLayout from '../../../layouts/DashboardLayout.astro';
             </span>
           </div>
           <div id="post-content" class="markdown-content text-sm leading-relaxed text-on-surface"></div>
+          <div id="post-reactions" class="mt-4"></div>
         </div>
         <div id="post-not-found" class="hidden rounded-xl border border-outline-variant/15 bg-surface-container-lowest p-5 text-sm text-on-surface-variant">
           <p class="font-semibold text-on-surface">Post no encontrado</p>
@@ -97,6 +98,8 @@ import DashboardLayout from '../../../layouts/DashboardLayout.astro';
     } from '../../../services/communityService';
     import { isAuthenticated, restoreSession } from '../../../services/authService';
     import { getProfilePhotoUrl } from '../../../services/profileService';
+    import { renderReactionBar, initReactionBars } from '../../../components/comunidad/reactionBar';
+    import { postTargetType, commentTargetType } from '../../../services/reactionsService';
 
     type ReaderType = 'community' | 'channel';
 
@@ -115,6 +118,7 @@ import DashboardLayout from '../../../layouts/DashboardLayout.astro';
     const commentInput = document.getElementById('comment-input') as HTMLTextAreaElement;
     const commentSubmit = document.getElementById('comment-submit') as HTMLButtonElement;
     const commentError = document.getElementById('comment-error') as HTMLParagraphElement;
+    const postReactions = document.getElementById('post-reactions') as HTMLDivElement;
 
     const COMMENTS_LIMIT = 20;
 
@@ -132,6 +136,7 @@ import DashboardLayout from '../../../layouts/DashboardLayout.astro';
     if (!isAuthenticated()) {
       window.location.href = '/login';
     }
+    initReactionBars();
 
     function showPageError(message: string): void {
       pageError.textContent = message;
@@ -180,6 +185,12 @@ import DashboardLayout from '../../../layouts/DashboardLayout.astro';
       postAvatar.src = getProfilePhotoUrl(post.user?.photoUrl, post.user?.id || '');
       postDate.textContent = formatDate(post.createdAt);
       postContent.innerHTML = renderMarkdown(post.content || '');
+      postReactions.innerHTML = renderReactionBar({
+        targetType: postTargetType(readerType),
+        targetId: post.id,
+        reactions: post.reactions,
+        myReaction: post.myReaction,
+      });
       if (post.status === 'paused') {
         postStatus.classList.remove('hidden');
       } else {
@@ -221,6 +232,9 @@ import DashboardLayout from '../../../layouts/DashboardLayout.astro';
             </div>
           </div>
           <div class="markdown-content text-sm text-on-surface-variant">${renderMarkdown(comment.content || '')}</div>
+          <div class="mt-2">
+            ${renderReactionBar({ targetType: commentTargetType(readerType), targetId: comment.id, reactions: comment.reactions, myReaction: comment.myReaction, compact: true })}
+          </div>
         </article>`;
     }
 
