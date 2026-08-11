@@ -9,12 +9,17 @@ import { escapeHtml } from '../../utils/helpers';
 import {
   REACTION_META,
   REACTION_ORDER,
+  applyOptimistic,
   normalizeReactionState,
+  removeReaction,
+  resolveToggle,
+  setReaction,
   totalReactions,
   type ReactionState,
   type ReactionTargetType,
   type ReactionType,
 } from '../../services/reactionsService';
+import { logout } from '../../services/authService';
 
 export interface ReactionBarOptions {
   targetType: ReactionTargetType;
@@ -81,4 +86,147 @@ export function renderReactionBar(opts: ReactionBarOptions): string {
   const compact = opts.compact === true;
   const stateAttr = escapeHtml(JSON.stringify(state));
   return `<div class="reaction-bar flex items-center gap-3" data-rx-type="${escapeHtml(opts.targetType)}" data-rx-id="${escapeHtml(opts.targetId)}" data-rx-compact="${compact}" data-rx-state="${stateAttr}">${renderInner(state, compact)}</div>`;
+}
+
+// ─── Controlador (delegación en document) ──────────────────────
+
+let initialized = false;
+
+export function initReactionBars(): void {
+  if (initialized) {
+    return;
+  }
+  initialized = true;
+  document.addEventListener('click', onDocumentClick);
+  document.addEventListener('keydown', onKeydown);
+}
+
+function readState(bar: HTMLElement): ReactionState {
+  try {
+    return normalizeReactionState(JSON.parse(bar.dataset.rxState || 'null'));
+  } catch {
+    return normalizeReactionState(null);
+  }
+}
+
+function writeState(bar: HTMLElement, state: ReactionState): void {
+  bar.dataset.rxState = JSON.stringify(state);
+  bar.innerHTML = renderInner(state, bar.dataset.rxCompact === 'true');
+}
+
+function closeAllPopovers(): void {
+  document.querySelectorAll<HTMLElement>('.rx-popover:not(.hidden)').forEach((pop) => {
+    pop.classList.add('hidden');
+    pop.closest('.reaction-bar')?.querySelector('.rx-trigger')?.setAttribute('aria-expanded', 'false');
+  });
+}
+
+function togglePopover(bar: HTMLElement): void {
+  const popover = bar.querySelector<HTMLElement>('.rx-popover');
+  const trigger = bar.querySelector<HTMLElement>('.rx-trigger');
+  if (!popover || !trigger) {
+    return;
+  }
+  const willOpen = popover.classList.contains('hidden');
+  closeAllPopovers();
+  if (willOpen) {
+    popover.classList.remove('hidden');
+    trigger.setAttribute('aria-expanded', 'true');
+    popover.querySelector<HTMLElement>('.rx-option')?.focus();
+  }
+}
+
+function onDocumentClick(event: MouseEvent): void {
+  const target = event.target as HTMLElement;
+
+  const option = target.closest<HTMLElement>('.rx-option');
+  if (option) {
+    const bar = option.closest<HTMLElement>('.reaction-bar');
+    const value = option.dataset.rxValue as ReactionType | undefined;
+    if (bar && value) {
+      void handleReactionClick(bar, value);
+    }
+    return;
+  }
+
+  const trigger = target.closest<HTMLElement>('.rx-trigger');
+  if (trigger) {
+    const bar = trigger.closest<HTMLElement>('.reaction-bar');
+    if (bar) {
+      togglePopover(bar);
+    }
+    return;
+  }
+
+  closeAllPopovers();
+}
+
+function onKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape') {
+    closeAllPopovers();
+  }
+}
+
+async function handleReactionClick(bar: HTMLElement, clicked: ReactionType): Promise<void> {
+  const targetType = bar.dataset.rxType as ReactionTargetType;
+  const targetId = bar.dataset.rxId || '';
+  const prev = readState(bar);
+  const action = resolveToggle(prev.myReaction, clicked);
+
+  closeAllPopovers();
+  writeState(bar, applyOptimistic(prev, action));
+
+  try {
+    const confirmed = action.method === 'DELETE'
+      ? await removeReaction(targetType, targetId)
+      : await setReaction(targetType, targetId, action.type);
+    writeState(bar, confirmed);
+  } catch (error) {
+    writeState(bar, prev);
+    handleReactionError(error);
+  }
+}
+
+function defaultMessageForStatus(status?: number): string {
+  switch (status) {
+    case 400:
+      return 'Reacción no válida.';
+    case 403:
+      return 'No tenés acceso a este contenido.';
+    case 404:
+      return 'No se encontró el contenido.';
+    default:
+      return 'No se pudo registrar tu reacción.';
+  }
+}
+
+function handleReactionError(error: unknown): void {
+  const err = error as { status?: number; body?: { message?: string } };
+  if (err?.status === 401) {
+    logout();
+    return;
+  }
+  showReactionToast(err?.body?.message || defaultMessageForStatus(err?.status));
+}
+
+let toastEl: HTMLElement | null = null;
+let toastTimer: number | undefined;
+
+function showReactionToast(message: string): void {
+  if (!toastEl) {
+    toastEl = document.createElement('div');
+    toastEl.setAttribute('role', 'status');
+    toastEl.className = 'fixed bottom-6 left-1/2 z-[100] -translate-x-1/2 rounded-lg bg-error px-4 py-2 text-sm font-medium text-white shadow-lg transition-opacity duration-300';
+    document.body.appendChild(toastEl);
+  }
+  toastEl.textContent = message;
+  toastEl.style.opacity = '1';
+  if (toastTimer) {
+    window.clearTimeout(toastTimer);
+  }
+  toastTimer = window.setTimeout(() => {
+    if (toastEl) {
+      toastEl.style.opacity = '0';
+    }
+  }, 3000);
 }
