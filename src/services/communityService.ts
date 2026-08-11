@@ -16,6 +16,7 @@
 
 import { api, apiURL } from './apiClient';
 import { getToken } from './authService';
+import type { ReactionCounts, ReactionType } from './reactionsService';
 
 // ─── Tipos ─────────────────────────────────────────────────────
 
@@ -42,6 +43,8 @@ export interface Comment {
   createdAt: string;
   updatedAt: string;
   user: PostUser;
+  reactions?: ReactionCounts;
+  myReaction?: ReactionType | null;
 }
 
 export interface Post {
@@ -57,6 +60,8 @@ export interface Post {
   updatedAt: string;
   user: PostUser;
   commentCount?: number;
+  reactions?: ReactionCounts;
+  myReaction?: ReactionType | null;
 }
 
 export interface PaginatedPosts {
