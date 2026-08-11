@@ -36,6 +36,8 @@
   } from '../../services/communityService';
   import { escapeHtml, formatDate, truncate, timeAgo } from '../../utils/helpers';
   import { renderMarkdown } from '../../utils/markdown';
+  import { renderReactionBar, initReactionBars } from './reactionBar';
+  import { postTargetType } from '../../services/reactionsService';
 
   type ProfileLoadedDetail = {
     userId?: string | null;
@@ -45,6 +47,8 @@
 
   const mypostsContainer = document.getElementById('myposts-container')!;
   const mypostsChannelSelect = document.getElementById('myposts-channel-filter') as HTMLSelectElement;
+
+  initReactionBars();
 
   let allMyPosts: Post[] = [];
   let myPostsChannelFilter = '';
@@ -129,6 +133,9 @@
               <span class="material-symbols-outlined text-sm" aria-hidden="true">comment</span>
               <span class="comment-count-label">${commentCount} ${commentCount === 1 ? 'comentario recibido' : 'comentarios recibidos'}</span>
             </button>
+          </div>
+          <div class="mt-2">
+            ${renderReactionBar({ targetType: postTargetType(postType === 'channel' ? 'channel' : 'community'), targetId: post.id, reactions: post.reactions, myReaction: post.myReaction })}
           </div>
         </div>
       </article>`;

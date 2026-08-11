@@ -58,6 +58,8 @@
   import { fetchProfile, getProfilePhotoUrl } from '../../services/profileService';
   import { escapeHtml, formatDate } from '../../utils/helpers';
   import { renderMarkdown } from '../../utils/markdown';
+  import { renderReactionBar, initReactionBars } from './reactionBar';
+  import { commentTargetType } from '../../services/reactionsService';
 
   type ModalOpenDetail = {
     postId: string;
@@ -78,6 +80,8 @@
   const modalCommentForm = document.getElementById('modal-comment-form') as HTMLFormElement;
   const modalCommentInput = document.getElementById('modal-comment-input') as HTMLInputElement;
   const modalCommentSend = document.getElementById('modal-comment-send') as HTMLButtonElement;
+
+  initReactionBars();
 
   let modalPostId: string | null = null;
   let modalChannelType: Channel['type'] = 'community';
@@ -119,6 +123,9 @@
             <span class="text-[10px] text-on-surface-variant">${escapeHtml(formatDate(comment.createdAt))}</span>
           </div>
           <div class="markdown-content text-xs text-on-surface-variant mt-0.5">${renderMarkdown(comment.content)}</div>
+          <div class="mt-1.5">
+            ${renderReactionBar({ targetType: commentTargetType(modalChannelType), targetId: comment.id, reactions: comment.reactions, myReaction: comment.myReaction, compact: true })}
+          </div>
         </div>
         ${comment.userId === userId ? `
           <button class="btn-delete-comment text-on-surface-variant hover:text-error transition-colors p-0.5" data-comment-id="${comment.id}" title="Eliminar comentario">

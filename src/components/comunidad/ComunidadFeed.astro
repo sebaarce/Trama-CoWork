@@ -51,6 +51,8 @@
   import { getProfilePhotoUrl } from '../../services/profileService';
   import { escapeHtml, timeAgo } from '../../utils/helpers';
   import { renderMarkdown } from '../../utils/markdown';
+  import { renderReactionBar, initReactionBars } from './reactionBar';
+  import { postTargetType } from '../../services/reactionsService';
 
   const channelIconEl = document.getElementById('channel-icon');
   const channelNameEl = document.getElementById('channel-name')!;
@@ -58,6 +60,8 @@
   const postsLoadMoreWrapper = document.getElementById('posts-load-more-wrapper')!;
   const postsLoadMoreBtn = document.getElementById('posts-load-more-btn') as HTMLButtonElement;
   const openNewPostModalButton = document.getElementById('open-new-post-modal') as HTMLButtonElement;
+
+  initReactionBars();
 
   let userId: string | null = null;
   let currentChannel = 'general';
@@ -107,6 +111,9 @@
             <span class="material-symbols-outlined text-sm" aria-hidden="true">comment</span>
             <span class="comment-count-label">${commentCount} ${commentCount === 1 ? 'comentario' : 'comentarios'}</span>
           </button>
+        </div>
+        <div class="pl-11 mt-2">
+          ${renderReactionBar({ targetType: postTargetType(postType), targetId: post.id, reactions: post.reactions, myReaction: post.myReaction })}
         </div>
       </article>`;
   }
