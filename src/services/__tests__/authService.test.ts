@@ -156,7 +156,7 @@ describe('AuthService', () => {
       expect(calledBody).not.toHaveProperty('referralCode');
     });
 
-    it('almacena el token y userId al registrarse', async () => {
+    it('no inicia sesión al registrarse (flujo de verificación por email)', async () => {
       const mockRes = { access_token: 'token-reg', userId: 'user-new' };
       (api.post as any).mockResolvedValue(mockRes);
 
@@ -166,9 +166,11 @@ describe('AuthService', () => {
         password: '12345678',
       });
 
-      expect(localStorage.setItem).toHaveBeenCalledWith('trama_access_token', 'token-reg');
-      expect(api.setHeader).toHaveBeenCalledWith('Authorization', 'Bearer token-reg');
+      // El registro NO persiste sesión: el usuario debe verificar su email
+      // antes de loguearse (la UI redirige a /registro/email-enviado).
       expect(result).toEqual(mockRes);
+      expect(localStorage.setItem).not.toHaveBeenCalled();
+      expect(api.setHeader).not.toHaveBeenCalled();
     });
   });
 });

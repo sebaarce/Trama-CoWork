@@ -25,9 +25,10 @@ describe('dashboard referral card', () => {
     expect(firstGridIndex).toBeGreaterThan(0);
     expect(secondGridIndex).toBeGreaterThan(firstGridIndex);
     expect(referralCardIndex).toBeGreaterThan(secondGridIndex);
+    // Fila de 4 columnas: referral-card + plan-card + 2 empty slots.
     expect(template).toContain('data-referral-empty-slot="1"');
     expect(template).toContain('data-referral-empty-slot="2"');
-    expect(template).toContain('data-referral-empty-slot="3"');
+    expect(template).not.toContain('data-referral-empty-slot="3"');
   });
 
   it('keeps copy button disabled by default and exposes manage action', () => {
