@@ -26,9 +26,7 @@ export interface ReactionState {
   myReaction: ReactionType | null;
 }
 
-export type ToggleAction =
-  | { method: 'PUT'; type: ReactionType }
-  | { method: 'DELETE' };
+export type ToggleAction = { method: 'PUT'; type: ReactionType } | { method: 'DELETE' };
 
 export const REACTION_ORDER: ReactionType[] = ['LIKE', 'LOVE', 'LAUGH', 'WOW', 'SAD', 'DISLIKE'];
 
@@ -112,10 +110,7 @@ export async function setReaction(
   return normalizeReactionState(response);
 }
 
-export async function removeReaction(
-  targetType: ReactionTargetType,
-  targetId: string,
-): Promise<ReactionState> {
+export async function removeReaction(targetType: ReactionTargetType, targetId: string): Promise<ReactionState> {
   setAuthHeader();
   const response = await api.del<unknown>(`/community/reactions/${targetType}/${targetId}`);
   return normalizeReactionState(response);

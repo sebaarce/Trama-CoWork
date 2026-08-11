@@ -5,21 +5,21 @@
  * HTML y se opera con un único controlador delegado en `document`.
  */
 
-import { escapeHtml } from '../../utils/helpers';
+import { logout } from '../../services/authService';
 import {
-  REACTION_META,
-  REACTION_ORDER,
   applyOptimistic,
   normalizeReactionState,
+  REACTION_META,
+  REACTION_ORDER,
+  type ReactionState,
+  type ReactionTargetType,
+  type ReactionType,
   removeReaction,
   resolveToggle,
   setReaction,
   totalReactions,
-  type ReactionState,
-  type ReactionTargetType,
-  type ReactionType,
 } from '../../services/reactionsService';
-import { logout } from '../../services/authService';
+import { escapeHtml } from '../../utils/helpers';
 
 export interface ReactionBarOptions {
   targetType: ReactionTargetType;
@@ -34,8 +34,7 @@ function renderSummary(state: ReactionState): string {
   if (total === 0) {
     return '';
   }
-  const emojis = REACTION_ORDER
-    .filter((type) => state.reactions[type] > 0)
+  const emojis = REACTION_ORDER.filter((type) => state.reactions[type] > 0)
     .map((type) => `<span class="text-sm" aria-hidden="true">${REACTION_META[type].emoji}</span>`)
     .join('');
   const label = total === 1 ? '1 reacción' : `${total} reacciones`;
@@ -63,7 +62,12 @@ function renderPopover(state: ReactionState): string {
   const options = REACTION_ORDER.map((type) => {
     const meta = REACTION_META[type];
     const active = state.myReaction === type ? 'bg-primary/15' : '';
-    const cls = ['rx-option rounded-md p-1.5 text-xl leading-none transition-transform hover:scale-125 hover:bg-surface-container-high', active].filter(Boolean).join(' ');
+    const cls = [
+      'rx-option rounded-md p-1.5 text-xl leading-none transition-transform hover:scale-125 hover:bg-surface-container-high',
+      active,
+    ]
+      .filter(Boolean)
+      .join(' ');
     return `<button type="button" role="menuitem" class="${cls}" data-rx-value="${type}" aria-label="${meta.label}" title="${meta.label}">${meta.emoji}</button>`;
   }).join('');
   return `
@@ -177,9 +181,10 @@ async function handleReactionClick(bar: HTMLElement, clicked: ReactionType): Pro
   writeState(bar, applyOptimistic(prev, action));
 
   try {
-    const confirmed = action.method === 'DELETE'
-      ? await removeReaction(targetType, targetId)
-      : await setReaction(targetType, targetId, action.type);
+    const confirmed =
+      action.method === 'DELETE'
+        ? await removeReaction(targetType, targetId)
+        : await setReaction(targetType, targetId, action.type);
     writeState(bar, confirmed);
   } catch (error) {
     writeState(bar, prev);
@@ -216,7 +221,8 @@ function showReactionToast(message: string): void {
   if (!toastEl) {
     toastEl = document.createElement('div');
     toastEl.setAttribute('role', 'status');
-    toastEl.className = 'fixed bottom-6 left-1/2 z-[100] -translate-x-1/2 rounded-lg bg-error px-4 py-2 text-sm font-medium text-white shadow-lg transition-opacity duration-300';
+    toastEl.className =
+      'fixed bottom-6 left-1/2 z-[100] -translate-x-1/2 rounded-lg bg-error px-4 py-2 text-sm font-medium text-white shadow-lg transition-opacity duration-300';
     document.body.appendChild(toastEl);
   }
   toastEl.textContent = message;
