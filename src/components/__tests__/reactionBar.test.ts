@@ -34,4 +34,24 @@ describe('renderReactionBar', () => {
       expect(html).toContain(`aria-label="${label}"`);
     }
   });
+
+  it('rx-option class attribute has no double spaces (active or inactive)', () => {
+    // inactive: no myReaction — every rx-option must have a clean class string
+    const htmlInactive = renderReactionBar({ targetType: 'community_post', targetId: 'p3' });
+    const inactiveMatches = [...htmlInactive.matchAll(/class="([^"]*rx-option[^"]*)"/g)];
+    expect(inactiveMatches.length).toBeGreaterThan(0);
+    for (const m of inactiveMatches) {
+      expect(m[1]).not.toContain('  ');
+    }
+
+    // active: myReaction set — the active option gets bg-primary/15, still no double spaces
+    const htmlActive = renderReactionBar({ targetType: 'community_post', targetId: 'p4', myReaction: 'LIKE' });
+    const activeMatches = [...htmlActive.matchAll(/class="([^"]*rx-option[^"]*)"/g)];
+    expect(activeMatches.length).toBeGreaterThan(0);
+    for (const m of activeMatches) {
+      expect(m[1]).not.toContain('  ');
+    }
+    // the active option itself must include the highlight class
+    expect(htmlActive).toContain('bg-primary/15');
+  });
 });

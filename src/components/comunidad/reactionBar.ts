@@ -58,7 +58,8 @@ function renderPopover(state: ReactionState): string {
   const options = REACTION_ORDER.map((type) => {
     const meta = REACTION_META[type];
     const active = state.myReaction === type ? 'bg-primary/15' : '';
-    return `<button type="button" role="menuitem" class="rx-option rounded-md p-1.5 text-xl leading-none transition-transform hover:scale-125 hover:bg-surface-container-high ${active}" data-rx-value="${type}" aria-label="${meta.label}" title="${meta.label}">${meta.emoji}</button>`;
+    const cls = ['rx-option rounded-md p-1.5 text-xl leading-none transition-transform hover:scale-125 hover:bg-surface-container-high', active].filter(Boolean).join(' ');
+    return `<button type="button" role="menuitem" class="${cls}" data-rx-value="${type}" aria-label="${meta.label}" title="${meta.label}">${meta.emoji}</button>`;
   }).join('');
   return `
     <div class="rx-popover hidden absolute bottom-full left-0 z-10 mb-1 flex items-center gap-0.5 rounded-full border border-outline-variant/20 bg-surface-container-lowest px-1.5 py-1 shadow-lg" role="menu">
