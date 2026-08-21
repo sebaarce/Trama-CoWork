@@ -10,12 +10,53 @@ import DashboardLayout from '../../layouts/DashboardLayout.astro';
 
   <section class="mb-6 border-b border-outline-variant/15">
     <div class="flex items-center gap-6">
-      <button id="tab-disponibles" type="button" class="border-b-2 border-primary px-1 py-3 text-sm font-bold text-primary transition-colors">Disponibles</button>
+      <button id="tab-externos" type="button" class="border-b-2 border-primary px-1 py-3 text-sm font-bold text-primary transition-colors">Externos</button>
+      <button id="tab-internos" type="button" class="border-b-2 border-transparent px-1 py-3 text-sm font-medium text-on-surface-variant transition-colors">Internos</button>
       <button id="tab-postulaciones" type="button" class="border-b-2 border-transparent px-1 py-3 text-sm font-medium text-on-surface-variant transition-colors">Mis postulaciones</button>
     </div>
   </section>
 
-  <section id="panel-disponibles" class="space-y-4">
+  <section id="panel-externos" class="space-y-4">
+    <div class="bg-surface-container-low rounded-2xl border border-outline-variant/10 p-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+      <div class="flex-1">
+        <label for="external-search-input" class="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-1.5 block">Buscar</label>
+        <input id="external-search-input" type="search" placeholder="Título, empresa…" class="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-xl px-3 py-2.5 text-sm text-on-surface font-medium" />
+      </div>
+      <div class="flex-1">
+        <label for="external-category-filter" class="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-1.5 block">Categoría</label>
+        <select id="external-category-filter" class="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-xl px-3 py-2.5 text-sm text-on-surface font-medium">
+          <option value="">Todas las categorías</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="external-jobs-loading" class="hidden flex items-center justify-center py-16">
+      <div class="flex flex-col items-center gap-3 text-on-surface-variant">
+        <div class="w-8 h-8 border-3 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+        <span class="text-sm font-medium">Cargando ofertas externas…</span>
+      </div>
+    </div>
+
+    <p id="external-jobs-error" class="hidden rounded-xl border border-error/20 bg-error/10 px-4 py-3 text-sm font-medium text-error"></p>
+
+    <div id="external-jobs-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+
+    <div id="external-jobs-empty" class="hidden rounded-2xl border border-outline-variant/10 bg-surface-container-low p-10 text-center text-on-surface-variant">
+      <span class="material-symbols-outlined text-4xl mb-2 block" aria-hidden="true">search_off</span>
+      <p class="text-sm font-medium">No se encontraron ofertas externas con ese criterio</p>
+    </div>
+
+    <div class="flex items-center justify-center gap-4">
+      <button id="external-jobs-prev" type="button" class="hidden px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest bg-surface-container text-on-surface-variant hover:bg-surface-container-high transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+        Anterior
+      </button>
+      <button id="external-jobs-next" type="button" class="hidden px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest bg-surface-container text-on-surface-variant hover:bg-surface-container-high transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+        Siguiente
+      </button>
+    </div>
+  </section>
+
+  <section id="panel-internos" class="hidden space-y-4">
     <div class="bg-surface-container-low rounded-2xl border border-outline-variant/10 p-4">
       <label for="jobs-category-filter" class="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-1.5 block">Rubro (opcional)</label>
       <select id="jobs-category-filter" class="w-full md:max-w-xs bg-surface-container-lowest border border-outline-variant/20 rounded-xl px-3 py-2.5 text-sm text-on-surface font-medium">
@@ -75,6 +116,7 @@ import DashboardLayout from '../../layouts/DashboardLayout.astro';
     import { getToken, isAuthenticated, restoreSession } from '../../services/authService';
     import { api } from '../../services/apiClient';
     import { listWorks, getMyWorkApplications, type Work, type WorkApplication } from '../../services/workService';
+    import { fetchExternalJobs, fetchExternalJobsCategories, SOURCE_LABELS, type ExternalJob, type ExternalJobCategory } from '../../services/externalJobsService';
     import { escapeHtml, formatDateShort, truncate } from '../../utils/helpers';
 
     const PAGE_SIZE = 20;
@@ -86,12 +128,31 @@ import DashboardLayout from '../../layouts/DashboardLayout.astro';
     let jobsLoaded = false;
     let applicationsLoaded = false;
     let rubros: ProfessionCategory[] = [];
-    let currentTab: 'disponibles' | 'postulaciones' = 'disponibles';
+    let currentTab: 'externos' | 'internos' | 'postulaciones' = 'externos';
 
-    const tabDisponibles = document.getElementById('tab-disponibles') as HTMLButtonElement;
+    // External jobs state
+    let externalPage = 1;
+    let externalHasMore = false;
+    let externalQ = '';
+    let externalCategoryName = '';
+    let externalCategoriesCached: ExternalJobCategory[] | null = null;
+    let searchDebounce: ReturnType<typeof setTimeout>;
+
+    const tabExternos = document.getElementById('tab-externos') as HTMLButtonElement;
+    const tabInternos = document.getElementById('tab-internos') as HTMLButtonElement;
     const tabPostulaciones = document.getElementById('tab-postulaciones') as HTMLButtonElement;
-    const panelDisponibles = document.getElementById('panel-disponibles') as HTMLElement;
+    const panelExternos = document.getElementById('panel-externos') as HTMLElement;
+    const panelInternos = document.getElementById('panel-internos') as HTMLElement;
     const panelPostulaciones = document.getElementById('panel-postulaciones') as HTMLElement;
+
+    const externalSearchInput = document.getElementById('external-search-input') as HTMLInputElement;
+    const externalCategoryFilter = document.getElementById('external-category-filter') as HTMLSelectElement;
+    const externalJobsLoading = document.getElementById('external-jobs-loading') as HTMLDivElement;
+    const externalJobsError = document.getElementById('external-jobs-error') as HTMLParagraphElement;
+    const externalJobsGrid = document.getElementById('external-jobs-grid') as HTMLDivElement;
+    const externalJobsEmpty = document.getElementById('external-jobs-empty') as HTMLDivElement;
+    const externalJobsPrev = document.getElementById('external-jobs-prev') as HTMLButtonElement;
+    const externalJobsNext = document.getElementById('external-jobs-next') as HTMLButtonElement;
 
     const categoryFilter = document.getElementById('jobs-category-filter') as HTMLSelectElement;
     const jobsLoading = document.getElementById('jobs-available-loading') as HTMLDivElement;
@@ -107,29 +168,56 @@ import DashboardLayout from '../../layouts/DashboardLayout.astro';
     const applicationsEmpty = document.getElementById('applications-empty') as HTMLDivElement;
     const applicationsLoadMore = document.getElementById('applications-load-more') as HTMLButtonElement;
 
-    function renderTabs(): void {
-      const isDisponibles = currentTab === 'disponibles';
-      tabDisponibles.className = isDisponibles
-        ? 'border-b-2 border-primary px-1 py-3 text-sm font-bold text-primary transition-colors'
-        : 'border-b-2 border-transparent px-1 py-3 text-sm font-medium text-on-surface-variant transition-colors';
-      tabPostulaciones.className = isDisponibles
-        ? 'border-b-2 border-transparent px-1 py-3 text-sm font-medium text-on-surface-variant transition-colors'
-        : 'border-b-2 border-primary px-1 py-3 text-sm font-bold text-primary transition-colors';
+    const ACTIVE_TAB_CLASS = 'border-b-2 border-primary px-1 py-3 text-sm font-bold text-primary transition-colors';
+    const INACTIVE_TAB_CLASS = 'border-b-2 border-transparent px-1 py-3 text-sm font-medium text-on-surface-variant transition-colors';
 
-      panelDisponibles.classList.toggle('hidden', !isDisponibles);
-      panelPostulaciones.classList.toggle('hidden', isDisponibles);
+    function renderTabs(): void {
+      tabExternos.className = currentTab === 'externos' ? ACTIVE_TAB_CLASS : INACTIVE_TAB_CLASS;
+      tabInternos.className = currentTab === 'internos' ? ACTIVE_TAB_CLASS : INACTIVE_TAB_CLASS;
+      tabPostulaciones.className = currentTab === 'postulaciones' ? ACTIVE_TAB_CLASS : INACTIVE_TAB_CLASS;
+
+      panelExternos.classList.toggle('hidden', currentTab !== 'externos');
+      panelInternos.classList.toggle('hidden', currentTab !== 'internos');
+      panelPostulaciones.classList.toggle('hidden', currentTab !== 'postulaciones');
     }
 
-    function setTab(tab: 'disponibles' | 'postulaciones', pushHistory: boolean): void {
+    // Step 13: URL state sync — writes q, categoryName, page, and tab to URL
+    function syncExternalFiltersToUrl(): void {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', 'externos');
+      if (externalQ) {
+        url.searchParams.set('q', externalQ);
+      } else {
+        url.searchParams.delete('q');
+      }
+      if (externalCategoryName) {
+        url.searchParams.set('categoryName', externalCategoryName);
+      } else {
+        url.searchParams.delete('categoryName');
+      }
+      url.searchParams.set('page', String(externalPage));
+      window.history.pushState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    }
+
+    function setTab(tab: 'externos' | 'internos' | 'postulaciones', pushHistory: boolean): void {
       currentTab = tab;
       renderTabs();
       if (pushHistory) {
         const url = new URL(window.location.href);
         url.searchParams.set('tab', tab);
+        // Clear external-specific params when leaving the externos tab
+        if (tab !== 'externos') {
+          url.searchParams.delete('q');
+          url.searchParams.delete('categoryName');
+          url.searchParams.delete('page');
+        }
         window.history.pushState({}, '', `${url.pathname}${url.search}${url.hash}`);
       }
 
-      if (tab === 'disponibles' && !jobsLoaded) {
+      if (tab === 'externos') {
+        void fetchAndRenderExternalJobs();
+      }
+      if (tab === 'internos' && !jobsLoaded) {
         void loadJobs(false);
       }
       if (tab === 'postulaciones' && !applicationsLoaded) {
@@ -137,9 +225,11 @@ import DashboardLayout from '../../layouts/DashboardLayout.astro';
       }
     }
 
-    function getTabFromUrl(): 'disponibles' | 'postulaciones' {
+    function getTabFromUrl(): 'externos' | 'internos' | 'postulaciones' {
       const tab = new URLSearchParams(window.location.search).get('tab');
-      return tab === 'postulaciones' ? 'postulaciones' : 'disponibles';
+      if (tab === 'internos') return 'internos';
+      if (tab === 'postulaciones') return 'postulaciones';
+      return 'externos';
     }
 
     function renderCategoryOptions(): void {
@@ -319,11 +409,143 @@ import DashboardLayout from '../../layouts/DashboardLayout.astro';
         rubros = [];
       }
 
+      // Step 13: restore external filter state from URL on initial load
+      const urlParams = new URLSearchParams(window.location.search);
+      externalQ = urlParams.get('q') ?? '';
+      externalCategoryName = urlParams.get('categoryName') ?? '';
+      externalPage = Number(urlParams.get('page') ?? '1') || 1;
+      if (externalQ) externalSearchInput.value = externalQ;
+
       setTab(getTabFromUrl(), false);
     }
 
-    tabDisponibles.addEventListener('click', () => setTab('disponibles', true));
+    async function populateExternalCategories(): Promise<void> {
+      if (externalCategoriesCached !== null) return;
+      try {
+        externalCategoriesCached = await fetchExternalJobsCategories();
+      } catch {
+        externalCategoriesCached = [];
+      }
+      externalCategoryFilter.innerHTML = '<option value="">Todas las categorías</option>';
+      for (const cat of externalCategoriesCached) {
+        const option = document.createElement('option');
+        option.value = cat.name;
+        option.textContent = `${cat.name} (${cat.count})`;
+        externalCategoryFilter.appendChild(option);
+      }
+      // Restore selected category from URL state
+      if (externalCategoryName) {
+        externalCategoryFilter.value = externalCategoryName;
+      }
+    }
+
+    // Step 8: render external job cards with SOURCE_LABELS mapping
+    function renderExternalJobCards(items: ExternalJob[]): void {
+      const html = items
+        .map(
+          (job) => `
+            <article class="rounded-2xl border border-outline-variant/10 bg-surface-container-low p-4 flex flex-col gap-3">
+              <div class="min-w-0">
+                <h3 class="text-base font-extrabold text-on-surface truncate">${escapeHtml(job.title)}</h3>
+                <p class="text-sm text-on-surface-variant truncate">${escapeHtml(job.company)}</p>
+              </div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="inline-flex items-center px-2 py-1 rounded-lg text-[11px] font-bold bg-surface-container-high text-on-surface-variant">${escapeHtml(job.categoryName)}</span>
+                <span class="inline-flex items-center px-2 py-1 rounded-lg text-[11px] font-bold bg-primary/10 text-primary">${escapeHtml(SOURCE_LABELS[job.source] ?? job.source)}</span>
+              </div>
+              <a href="${escapeHtml(job.url)}" target="_blank" rel="noopener noreferrer" class="self-start mt-auto px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest bg-primary text-on-primary hover:bg-primary/90 transition-colors">
+                Ver oferta
+              </a>
+            </article>`,
+        )
+        .join('');
+      externalJobsGrid.innerHTML = html;
+    }
+
+    // Steps 7, 8, 9, 10, 11, 12, 13: full fetch-render-state-sync for external jobs
+    async function fetchAndRenderExternalJobs(): Promise<void> {
+      // Step 12: show loading, hide other states
+      externalJobsLoading.classList.remove('hidden');
+      externalJobsGrid.innerHTML = '';
+      externalJobsEmpty.classList.add('hidden');
+      externalJobsError.classList.add('hidden');
+      externalJobsError.textContent = '';
+      externalJobsPrev.classList.add('hidden');
+      externalJobsNext.classList.add('hidden');
+
+      // Read current filter values from DOM
+      externalQ = externalSearchInput.value.trim();
+      externalCategoryName = externalCategoryFilter.value;
+
+      // Step 13: sync URL state
+      syncExternalFiltersToUrl();
+
+      await populateExternalCategories();
+
+      try {
+        const response = await fetchExternalJobs(
+          externalQ || undefined,
+          externalCategoryName || undefined,
+          externalPage,
+        );
+        externalHasMore = response.hasMore;
+
+        // Step 12: hide loading
+        externalJobsLoading.classList.add('hidden');
+
+        // Step 10: empty state
+        if (response.data.length === 0) {
+          externalJobsEmpty.classList.remove('hidden');
+          return;
+        }
+
+        // Step 8: render cards
+        renderExternalJobCards(response.data);
+
+        // Step 9: pagination button visibility and disabled states
+        externalJobsPrev.classList.remove('hidden');
+        externalJobsNext.classList.remove('hidden');
+        externalJobsPrev.disabled = externalPage === 1;
+        externalJobsNext.disabled = !externalHasMore;
+      } catch {
+        // Step 12: hide loading
+        externalJobsLoading.classList.add('hidden');
+        // Step 11: error state (401 is already handled by the service via logout)
+        externalJobsError.textContent = 'No se pudieron cargar las ofertas externas. Intentá de nuevo más tarde.';
+        externalJobsError.classList.remove('hidden');
+      }
+    }
+
+    tabExternos.addEventListener('click', () => setTab('externos', true));
+    tabInternos.addEventListener('click', () => setTab('internos', true));
     tabPostulaciones.addEventListener('click', () => setTab('postulaciones', true));
+
+    externalSearchInput.addEventListener('input', () => {
+      clearTimeout(searchDebounce);
+      externalPage = 1;
+      searchDebounce = setTimeout(() => void fetchAndRenderExternalJobs(), 300);
+    });
+
+    // Step 7: category dropdown change handler (non-debounced)
+    externalCategoryFilter.addEventListener('change', () => {
+      externalPage = 1;
+      void fetchAndRenderExternalJobs();
+    });
+
+    // Step 9 + Step 15: pagination handlers with scroll-to-top
+    externalJobsPrev.addEventListener('click', () => {
+      if (externalPage <= 1) return;
+      externalPage -= 1;
+      void fetchAndRenderExternalJobs();
+      panelExternos.scrollIntoView({ behavior: 'smooth' });
+    });
+
+    externalJobsNext.addEventListener('click', () => {
+      if (!externalHasMore) return;
+      externalPage += 1;
+      void fetchAndRenderExternalJobs();
+      panelExternos.scrollIntoView({ behavior: 'smooth' });
+    });
 
     categoryFilter.addEventListener('change', () => {
       selectedCategoryId = categoryFilter.value ? Number(categoryFilter.value) : undefined;
