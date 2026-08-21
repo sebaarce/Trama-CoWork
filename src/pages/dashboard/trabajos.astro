@@ -429,8 +429,8 @@ import DashboardLayout from '../../layouts/DashboardLayout.astro';
       externalCategoryFilter.innerHTML = '<option value="">Todas las categorías</option>';
       for (const cat of externalCategoriesCached) {
         const option = document.createElement('option');
-        option.value = cat.name;
-        option.textContent = `${cat.name} (${cat.count})`;
+        option.value = cat.categoryName;
+        option.textContent = `${cat.categoryName} (${cat.count})`;
         externalCategoryFilter.appendChild(option);
       }
       // Restore selected category from URL state
@@ -447,13 +447,13 @@ import DashboardLayout from '../../layouts/DashboardLayout.astro';
             <article class="rounded-2xl border border-outline-variant/10 bg-surface-container-low p-4 flex flex-col gap-3">
               <div class="min-w-0">
                 <h3 class="text-base font-extrabold text-on-surface truncate">${escapeHtml(job.title)}</h3>
-                <p class="text-sm text-on-surface-variant truncate">${escapeHtml(job.company)}</p>
+                <p class="text-xs text-on-surface-variant mt-0.5">${escapeHtml(formatDateShort(job.publishedAt))}</p>
               </div>
               <div class="flex items-center gap-2 flex-wrap">
-                <span class="inline-flex items-center px-2 py-1 rounded-lg text-[11px] font-bold bg-surface-container-high text-on-surface-variant">${escapeHtml(job.categoryName)}</span>
+                ${job.categoryName ? `<span class="inline-flex items-center px-2 py-1 rounded-lg text-[11px] font-bold bg-surface-container-high text-on-surface-variant">${escapeHtml(job.categoryName)}</span>` : ''}
                 <span class="inline-flex items-center px-2 py-1 rounded-lg text-[11px] font-bold bg-primary/10 text-primary">${escapeHtml(SOURCE_LABELS[job.source] ?? job.source)}</span>
               </div>
-              <a href="${escapeHtml(job.url)}" target="_blank" rel="noopener noreferrer" class="self-start mt-auto px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest bg-primary text-on-primary hover:bg-primary/90 transition-colors">
+              <a href="${escapeHtml(job.link)}" target="_blank" rel="noopener noreferrer" class="self-start mt-auto px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest bg-primary text-on-primary hover:bg-primary/90 transition-colors">
                 Ver oferta
               </a>
             </article>`,
@@ -488,7 +488,7 @@ import DashboardLayout from '../../layouts/DashboardLayout.astro';
           externalCategoryName || undefined,
           externalPage,
         );
-        externalHasMore = response.hasMore;
+        externalHasMore = response.pagination.page < response.pagination.totalPages;
 
         // Step 12: hide loading
         externalJobsLoading.classList.add('hidden');

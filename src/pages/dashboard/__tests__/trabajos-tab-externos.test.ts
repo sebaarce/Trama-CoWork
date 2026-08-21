@@ -115,7 +115,7 @@ describe('Scenario: Category dropdown displays with counts and caches across fil
 
     // Verify the rendering logic includes count format
     expect(trabajosContent).toContain('populateExternalCategories');
-    expect(trabajosContent).toContain('${cat.name} (${cat.count})');
+    expect(trabajosContent).toContain('${cat.categoryName} (${cat.count})');
   });
 
   it('Test 5: "Todas las categorías" is the first option in the dropdown', () => {
@@ -202,7 +202,7 @@ describe('Scenario: Job cards display all fields and open in new tab with securi
     expect(trabajosContent).toContain('rel="noopener noreferrer"');
 
     // Verify the text "Ver oferta" is in a link with the correct attributes
-    const verOfertaPattern = /href="\$\{escapeHtml\(job\.url\)\}"[^>]*target="_blank"[^>]*rel="noopener noreferrer"/;
+    const verOfertaPattern = /href="\$\{escapeHtml\(job\.link\)\}"[^>]*target="_blank"[^>]*rel="noopener noreferrer"/;
     expect(trabajosContent).toMatch(verOfertaPattern);
 
     // Also verify the text "Ver oferta" appears in the template (may have whitespace)

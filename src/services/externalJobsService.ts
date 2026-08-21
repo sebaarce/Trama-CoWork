@@ -5,24 +5,28 @@ import { getToken, logout } from './authService';
 
 export interface ExternalJob {
   id: string | number;
-  title: string;
-  company: string;
-  categoryName: string;
   source: string;
-  url: string;
+  externalId: string;
+  title: string;
+  link: string;
+  categoryName: string | null;
+  publishedAt: string;
+  createdAt: string;
 }
 
 export interface ExternalJobCategory {
-  name: string;
+  categoryName: string;
   count: number;
 }
 
 export interface PaginatedExternalJobs {
   data: ExternalJob[];
-  total: number;
-  page: number;
-  limit: number;
-  hasMore: boolean;
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }
 
 // Source label mapping
