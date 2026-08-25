@@ -515,6 +515,7 @@ import DashboardLayout from '../../layouts/DashboardLayout.astro';
       return;
     } catch (error) {
       const apiError = error as Error & { status?: number; body?: PasswordApiError | null };
+      // intentionally handled locally: wrong-password / permissions error, not session expiry
       if (apiError.status === 400 || apiError.status === 401) {
         showPasswordError('Contraseña actual incorrecta');
       } else if (apiError.status === 422) {

@@ -5,7 +5,6 @@
  * HTML y se opera con un único controlador delegado en `document`.
  */
 
-import { logout } from '../../services/authService';
 import {
   applyOptimistic,
   normalizeReactionState,
@@ -207,10 +206,6 @@ function defaultMessageForStatus(status?: number): string {
 
 function handleReactionError(error: unknown): void {
   const err = error as { status?: number; body?: { message?: string } };
-  if (err?.status === 401) {
-    logout();
-    return;
-  }
   showReactionToast(err?.body?.message || defaultMessageForStatus(err?.status));
 }
 

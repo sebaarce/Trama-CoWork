@@ -19,9 +19,12 @@ export function apiURL(path: string): string {
   return new URL(path, `${API_BASE_URL}/`).toString();
 }
 
+export const INTERCEPTOR_EXCLUDED_PATHS: readonly string[] = ['/auth/login', '/auth/admin/login'];
+
 export class ApiClient {
   private baseUrl: string;
   private defaultHeaders: Record<string, string>;
+  private unauthorizedHandler?: () => void;
 
   constructor(baseUrl = API_BASE_URL) {
     this.baseUrl = baseUrl.replace(/\/+$/, '');
@@ -59,26 +62,34 @@ export class ApiClient {
       config.body = JSON.stringify(options.body);
     }
 
-    console.log(`[API] ${method} ${url}`);
-    const res = await fetch(url, config);
+    try {
+      console.log(`[API] ${method} ${url}`);
+      const res = await fetch(url, config);
 
-    if (!res.ok) {
-      let errorBody: unknown;
-      try {
-        errorBody = await res.json();
-      } catch {
-        errorBody = null;
+      if (!res.ok) {
+        let errorBody: unknown;
+        try {
+          errorBody = await res.json();
+        } catch {
+          errorBody = null;
+        }
+        const err = new Error(`[${method}] ${path} - ${res.status} ${res.statusText}`) as Error & {
+          status: number;
+          body: unknown;
+        };
+        err.status = res.status;
+        err.body = errorBody;
+        throw err;
       }
-      const err = new Error(`[${method}] ${path} - ${res.status} ${res.statusText}`) as Error & {
-        status: number;
-        body: unknown;
-      };
-      err.status = res.status;
-      err.body = errorBody;
+
+      return this.parseBody<T>(res);
+    } catch (err) {
+      const apiErr = err as { status?: number };
+      if (apiErr.status === 401 && !INTERCEPTOR_EXCLUDED_PATHS.includes(path)) {
+        this.unauthorizedHandler?.();
+      }
       throw err;
     }
-
-    return this.parseBody<T>(res);
   }
 
   /**
@@ -129,35 +140,81 @@ export class ApiClient {
       if (k.toLowerCase() !== 'content-type') headers[k] = v;
     }
 
-    console.log(`[API] POST (upload) ${url}`);
-    const res = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: formData,
-    });
+    try {
+      console.log(`[API] POST (upload) ${url}`);
+      const res = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
 
-    if (!res.ok) {
-      let errorBody: unknown;
-      try {
-        errorBody = await res.json();
-      } catch {
-        errorBody = null;
+      if (!res.ok) {
+        let errorBody: unknown;
+        try {
+          errorBody = await res.json();
+        } catch {
+          errorBody = null;
+        }
+        const err = new Error(`[POST upload] ${path} - ${res.status} ${res.statusText}`) as Error & {
+          status: number;
+          body: unknown;
+        };
+        err.status = res.status;
+        err.body = errorBody;
+        throw err;
       }
-      const err = new Error(`[POST upload] ${path} - ${res.status} ${res.statusText}`) as Error & {
-        status: number;
-        body: unknown;
-      };
-      err.status = res.status;
-      err.body = errorBody;
+
+      return this.parseBody<T>(res);
+    } catch (err) {
+      const apiErr = err as { status?: number };
+      if (apiErr.status === 401 && !INTERCEPTOR_EXCLUDED_PATHS.includes(path)) {
+        this.unauthorizedHandler?.();
+      }
       throw err;
     }
-
-    return this.parseBody<T>(res);
   }
 
   /** Build a full URL for binary downloads (caller uses window.open or <a>). */
   downloadUrl(path: string): string {
     return this.buildUrl(path);
+  }
+
+  /**
+   * Download a binary resource and return it as a Blob.
+   * Covered by the global 401 interceptor: 401 responses invoke the
+   * unauthorized handler and re-throw, same as request().
+   */
+  async downloadBlob(path: string): Promise<Blob> {
+    const url = this.buildUrl(path);
+    const config: RequestInit = {
+      method: 'GET',
+      headers: { ...this.defaultHeaders, 'Content-Type': 'application/octet-stream' },
+    };
+
+    try {
+      console.log(`[API] GET (blob) ${url}`);
+      const res = await fetch(url, config);
+
+      if (!res.ok) {
+        const err = new Error(`[GET blob] ${path} - ${res.status} ${res.statusText}`) as Error & {
+          status: number;
+        };
+        err.status = res.status;
+        throw err;
+      }
+
+      return res.blob();
+    } catch (err) {
+      const apiErr = err as { status?: number };
+      if (apiErr.status === 401 && !INTERCEPTOR_EXCLUDED_PATHS.includes(path)) {
+        this.unauthorizedHandler?.();
+      }
+      throw err;
+    }
+  }
+
+  setUnauthorizedHandler(fn: () => void): void {
+    this.unauthorizedHandler = fn;
   }
 
   setHeader(key: string, value: string): void {

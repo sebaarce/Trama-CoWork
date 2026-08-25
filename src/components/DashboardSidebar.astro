@@ -160,9 +160,8 @@ const mockUser = {
         // Hide "Ver perfil público" button (solo para perfiles no activos)
         if (link) link.classList.add('hidden');
       }
-    } catch (err: unknown) {
-      const error = err as Error & { status?: number };
-      if (error?.status === 401) logout();
+    } catch {
+      // 401 handled globally by interceptor
     }
   }
 

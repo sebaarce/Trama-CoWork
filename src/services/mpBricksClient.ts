@@ -1,4 +1,3 @@
-import { logout } from './authService';
 import { fetchBricksConfig, subscribeWithBricks, type BricksCheckoutPlan } from './subscriptionService';
 
 declare global {
@@ -204,10 +203,6 @@ async function processBrickSubscription(planId: string, formData: PaymentFormDat
     throw new Error(result.status || 'rejected');
   } catch (err: unknown) {
     const error = err as Error & { status?: number; body?: { message?: string } };
-    if (error?.status === 401) {
-      logout();
-      return;
-    }
     if (error?.status === 409) {
       closeBrickModal();
       showToast('Ya tenés una suscripción activa.', 'error');
@@ -267,11 +262,6 @@ export async function startBricksCheckout(options: StartBricksCheckoutOptions): 
   } catch (err: unknown) {
     const error = err as Error & { status?: number };
     refs.loading.classList.add('hidden');
-
-    if (error?.status === 401) {
-      logout();
-      return;
-    }
 
     if (error?.status === 409) {
       closeBrickModal();

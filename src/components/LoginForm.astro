@@ -115,6 +115,7 @@
 
 <script>
   import { login } from '../services/authService';
+  import { isValidRedirectPath } from '../utils/redirectUtils';
 
   const loginForm = document.getElementById('login-form') as HTMLFormElement | null;
   const btnLogin = document.getElementById('btn-login') as HTMLButtonElement | null;
@@ -140,6 +141,11 @@
 
   toastClose?.addEventListener('click', hideToast);
 
+  function getPostLoginRedirect(): string {
+    const from = new URLSearchParams(window.location.search).get('from') ?? '';
+    return isValidRedirectPath(from) ? from : '/dashboard/comunidad';
+  }
+
   loginForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -157,7 +163,7 @@
 
     try {
       await login({ email, password });
-      window.location.href = '/dashboard/comunidad';
+      window.location.href = getPostLoginRedirect();
     } catch (err: any) {
       const message = err?.body?.error || 'Verifique sus datos e intente nuevamente.';
       showToast(message);

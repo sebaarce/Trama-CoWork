@@ -170,10 +170,8 @@ import DashboardLayout from '../../../layouts/DashboardLayout.astro';
           planName.textContent = sub.plan.name;
           planAmount.textContent = `${formatCurrency(sub.plan.amount, sub.plan.currency)}${frequencyLabel(sub.plan.frequency, sub.plan.frequencyType)}`;
         }
-      } catch (err: unknown) {
-        const error = err as Error & { status?: number };
-        if (error?.status === 401) { logout(); return; }
-        // If no subscription found, redirect
+      } catch {
+        // If no subscription found (or 401 handled globally), redirect
         window.location.href = '/dashboard/pagos';
       }
     }
@@ -203,8 +201,6 @@ import DashboardLayout from '../../../layouts/DashboardLayout.astro';
         window.location.href = `/dashboard/pagos?toast=${msg}&toast_type=success`;
       } catch (err: unknown) {
         const error = err as Error & { status?: number };
-        if (error?.status === 401) { logout(); return; }
-
         btnCancel.removeAttribute('disabled');
         btnCancel.innerHTML = '<span class="material-symbols-outlined text-sm" aria-hidden="true">cancel</span> Cancelar mi suscripcion';
 

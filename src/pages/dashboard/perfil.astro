@@ -283,7 +283,7 @@ import ProfileModals from '../../components/profile/ProfileModals.astro';
           if (deleteBtn) { deleteBtn.classList.remove('hidden'); deleteBtn.classList.add('flex'); }
           showToast('Foto actualizada', 'success');
           window.dispatchEvent(new CustomEvent('sidebar:update-photo', { detail: { src: preview.src } }));
-        } catch (err: any) { if (err?.status === 401) { logout(); return; } showToast(err?.message || 'Error al subir foto', 'error'); }
+        } catch (err: any) { showToast(err?.message || 'Error al subir foto', 'error'); }
         finally { spinner.classList.add('hidden'); spinner.classList.remove('flex'); fileInput.value = ''; }
       });
     }
@@ -1087,7 +1087,6 @@ import ProfileModals from '../../components/profile/ProfileModals.astro';
           if (updated?.completionPct !== undefined) setCompletion(nCircle, nText, nStatus, updated.completionPct);
           showToast('Perfil actualizado', 'success');
         } catch (err: any) {
-          if (err?.status === 401) { logout(); return; }
           showToast(err?.message || 'Error al guardar', 'error');
         } finally {
           nBtnSave.removeAttribute('disabled');
@@ -1126,7 +1125,6 @@ import ProfileModals from '../../components/profile/ProfileModals.astro';
           initNormalForm(data);
         }
       } catch (err: any) {
-        if (err?.status === 401) { logout(); return; }
         document.getElementById('profile-loading')!.classList.add('hidden');
         document.getElementById('profile-error')!.classList.remove('hidden');
         document.getElementById('profile-error-msg')!.textContent = err?.message || 'Error al cargar el perfil.';

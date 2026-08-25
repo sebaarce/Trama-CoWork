@@ -320,10 +320,6 @@ import DashboardLayout from '../../../layouts/DashboardLayout.astro';
         window.location.href = response.initPoint;
       } catch (err: unknown) {
         const error = err as Error & { status?: number };
-        if (error?.status === 401) {
-          logout();
-          return;
-        }
         if (error?.status === 409) {
           showToast('Ya tenés una suscripción activa.', 'error');
           return;
@@ -407,9 +403,7 @@ import DashboardLayout from '../../../layouts/DashboardLayout.astro';
         });
         currentPaymentPage = page;
         renderPayments(data);
-      } catch (err: unknown) {
-        const error = err as Error & { status?: number };
-        if (error?.status === 401) { logout(); return; }
+      } catch {
         paymentsLoading.classList.add('hidden');
         paymentsEmpty.classList.remove('hidden');
       }
@@ -493,7 +487,6 @@ import DashboardLayout from '../../../layouts/DashboardLayout.astro';
         }
       } catch (err: unknown) {
         const error = err as Error & { status?: number };
-        if (error?.status === 401) { logout(); return; }
         loadingEl.classList.add('hidden');
         errorEl.classList.remove('hidden');
         errorMsg.textContent = error?.message || 'No se pudo obtener la informacion.';

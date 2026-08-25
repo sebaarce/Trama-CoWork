@@ -6,6 +6,7 @@
  *   - POST /auth/login  -> { email, password } => { access_token } | { error }
  */
 
+import { clearPendingSubscription } from '../utils/subscriptionUtils';
 import { api } from './apiClient';
 
 export interface LoginRequest {
@@ -120,7 +121,12 @@ export function isAuthenticated(): boolean {
   return true;
 }
 
-export function logout(redirectTo = '/login'): void {
+export async function logout(redirectTo = '/login'): Promise<void> {
+  try {
+    clearPendingSubscription();
+  } catch (err) {
+    console.error('[logout] clearPendingSubscription failed:', err);
+  }
   localStorage.removeItem(TOKEN_KEY);
   clearTokenCookie();
   window.location.href = redirectTo;
@@ -172,6 +178,13 @@ export function getRoleFromToken(): string {
 }
 
 export function restoreSession(): void {
+  // Wire the global 401 handler on every session restore.
+  // restoreSession() is called synchronously at module-top in every
+  // authenticated page script, before any API calls — making it the
+  // only boot point that reliably precedes the first request across
+  // both DashboardLayout and AdminLayout page trees.
+  api.setUnauthorizedHandler(() => logout(`/login?reason=expired&from=${encodeURIComponent(window.location.pathname + window.location.search)}`));
+
   const token = getToken();
   if (token && !isTokenExpired(token)) {
     api.setHeader('Authorization', `Bearer ${token}`);
@@ -214,7 +227,8 @@ export async function professionalRegister(
 export function setTokenCookie(token: string): void {
   if (typeof document === 'undefined') return;
   const secure = location.protocol === 'https:' ? '; Secure' : '';
-  const maxAge = 60 * 60 * 24 * 7;
+  const maxAgeEnv = parseInt(import.meta.env.PUBLIC_SESSION_MAX_AGE_SECONDS || '', 10);
+  const maxAge = Number.isNaN(maxAgeEnv) || maxAgeEnv <= 0 ? 82800 : maxAgeEnv;
   document.cookie = `trama_token=${encodeURIComponent(token)}; path=/; SameSite=Lax; Max-Age=${maxAge}${secure}`;
 }
 

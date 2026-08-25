@@ -1,5 +1,5 @@
 import { api, apiURL } from './apiClient';
-import { getToken, logout } from './authService';
+import { getToken } from './authService';
 
 // Types
 
@@ -53,30 +53,10 @@ function setAuthHeader(): void {
 
 export async function fetchExternalJobs(q?: string, categoryName?: string, page = 1): Promise<PaginatedExternalJobs> {
   setAuthHeader();
-  try {
-    return await api.get<PaginatedExternalJobs>(EXTERNAL_JOBS_PATH, {
-      q,
-      categoryName,
-      page,
-    });
-  } catch (err) {
-    const e = err as { status?: number };
-    if (e.status === 401) {
-      logout();
-    }
-    throw err;
-  }
+  return api.get<PaginatedExternalJobs>(EXTERNAL_JOBS_PATH, { q, categoryName, page });
 }
 
 export async function fetchExternalJobsCategories(): Promise<ExternalJobCategory[]> {
   setAuthHeader();
-  try {
-    return await api.get<ExternalJobCategory[]>(EXTERNAL_JOBS_CATEGORIES_PATH);
-  } catch (err) {
-    const e = err as { status?: number };
-    if (e.status === 401) {
-      logout();
-    }
-    throw err;
-  }
+  return api.get<ExternalJobCategory[]>(EXTERNAL_JOBS_CATEGORIES_PATH);
 }

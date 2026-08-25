@@ -143,6 +143,7 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
       form.reset();
     } catch (error) {
       const apiError = error as Error & { status?: number; body?: { message?: string } | null };
+      // intentionally handled locally: wrong-password / permissions error, not session expiry
       if (apiError.status === 401) {
         showError('La contraseña actual es incorrecta.');
       } else if (apiError.status === 404) {

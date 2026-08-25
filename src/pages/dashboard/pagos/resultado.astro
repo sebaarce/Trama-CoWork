@@ -60,7 +60,6 @@ import DashboardLayout from '../../../layouts/DashboardLayout.astro';
   </div>
 
   <script>
-    import { logout } from '../../../services/authService';
     import { getMySubscription } from '../../../services/subscriptionService';
 
     const PENDING_SUBSCRIPTION_KEY = 'trama_subscription_pending';
@@ -126,13 +125,8 @@ import DashboardLayout from '../../../layouts/DashboardLayout.astro';
             navigateToPayments(1500);
             return;
           }
-        } catch (err: unknown) {
-          const error = err as Error & { status?: number };
-          if (error?.status === 401) {
-            clearPendingSubscription();
-            logout();
-            return;
-          }
+        } catch {
+          // 401 handled globally by interceptor
         }
 
         if (attempt < MAX_POLL_ATTEMPTS) {

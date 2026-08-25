@@ -528,6 +528,7 @@ import AdminLayout from '../../../layouts/AdminLayout.astro';
           );
         } else if (status === 400) {
           showErrorModal('Error de validación', detail);
+        // intentionally handled locally: wrong-password / permissions error, not session expiry
         } else if (status === 401 || status === 403) {
           showErrorModal('Sin permisos', 'Tu sesión expiró o no tenés permisos para realizar esta acción.');
         } else {

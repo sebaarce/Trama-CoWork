@@ -279,20 +279,8 @@ import DashboardLayout from '../../layouts/DashboardLayout.astro';
 
     // ─── Authenticated download ─────────────────────────────────
     async function downloadDocument(docId: string, fileName: string) {
-      const token = getToken();
-      if (!token) { logout(); return; }
-
       try {
-        const res = await fetch(api.downloadUrl(`/uploads/document/${docId}`), {
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-
-        if (!res.ok) {
-          if (res.status === 401) { logout(); return; }
-          throw new Error(`Error ${res.status}`);
-        }
-
-        const blob = await res.blob();
+        const blob = await api.downloadBlob(`/uploads/document/${docId}`);
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -325,20 +313,8 @@ import DashboardLayout from '../../layouts/DashboardLayout.astro';
         <span class="ml-3 text-xs text-on-surface-variant">Cargando preview...</span>
       </div>`;
 
-      const token = getToken();
-      if (!token) { logout(); return; }
-
       try {
-        const res = await fetch(api.downloadUrl(`/uploads/document/${docId}`), {
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-
-        if (!res.ok) {
-          if (res.status === 401) { logout(); return; }
-          throw new Error(`Error ${res.status}`);
-        }
-
-        const blob = await res.blob();
+        const blob = await api.downloadBlob(`/uploads/document/${docId}`);
         const blobUrl = URL.createObjectURL(blob);
         activeBlobUrls.set(docId, blobUrl);
 
@@ -622,7 +598,6 @@ import DashboardLayout from '../../layouts/DashboardLayout.astro';
         showToast('Registro agregado', 'success');
       } catch (err: unknown) {
         const error = err as Error & { status?: number };
-        if (error?.status === 401) { logout(); return; }
         showToast(error?.message || 'Error al guardar', 'error');
       } finally {
         btnSave.removeAttribute('disabled');
@@ -675,10 +650,6 @@ import DashboardLayout from '../../layouts/DashboardLayout.astro';
         updateCounter();
       } catch (err: unknown) {
         const error = err as Error & { status?: number };
-        if (error?.status === 401) {
-          logout();
-          return;
-        }
         loadingEl.classList.add('hidden');
         errorEl.classList.remove('hidden');
         errorMsg.textContent = error?.message || 'No se pudo obtener la información.';

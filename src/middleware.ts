@@ -81,7 +81,8 @@ async function resolve(context: APIContext, next: MiddlewareNext): Promise<Respo
   // Protect /dashboard/*
   if (pathname.startsWith('/dashboard')) {
     if (!isTokenValid(token)) {
-      return context.redirect('/login');
+      const from = encodeURIComponent(context.url.pathname + context.url.search);
+      return context.redirect(`/login?reason=expired&from=${from}`);
     }
 
     // Payment gate — only for professionals

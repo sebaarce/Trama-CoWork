@@ -199,3 +199,149 @@ describe('ApiClient', () => {
     expect(json).not.toHaveBeenCalled();
   });
 });
+
+describe('Scenario: Global 401 interceptor triggers logout and redirects to login', () => {
+  it('Test 1: Interceptor invoca handler en 401 y relanza el error', async () => {
+    const mockHandler = vi.fn();
+    const client = new ApiClient('http://localhost:3000');
+    client.setUnauthorizedHandler(mockHandler);
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+        json: () => Promise.resolve({ error: 'Token expired' }),
+      }),
+    );
+
+    try {
+      await client.get('/protected');
+      expect.unreachable('Debería haber lanzado error 401');
+    } catch (err: any) {
+      expect(mockHandler).toHaveBeenCalledTimes(1);
+      expect(err.status).toBe(401);
+    }
+  });
+
+  it('Test 3: Upload method intercepta 401 y relanza', async () => {
+    const mockHandler = vi.fn();
+    const client = new ApiClient('http://localhost:3000');
+    client.setUnauthorizedHandler(mockHandler);
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+        json: () => Promise.resolve({ error: 'Unauthorized upload' }),
+      }),
+    );
+
+    const formData = new FormData();
+    formData.append('file', new Blob(['test']), 'test.txt');
+
+    try {
+      await client.upload('/uploads/file', formData);
+      expect.unreachable('Debería haber lanzado error 401');
+    } catch (err: any) {
+      expect(mockHandler).toHaveBeenCalledTimes(1);
+      expect(err.status).toBe(401);
+    }
+  });
+});
+
+describe('Scenario: Login endpoint 401 responses do not trigger interceptor', () => {
+  it('Test 2: Interceptor NO invoca handler para /auth/login con 401', async () => {
+    const mockHandler = vi.fn();
+    const client = new ApiClient('http://localhost:3000');
+    client.setUnauthorizedHandler(mockHandler);
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+        json: () => Promise.resolve({ error: 'Invalid credentials' }),
+      }),
+    );
+
+    try {
+      await client.post('/auth/login', { email: 'test@test.com', password: 'wrong' });
+      expect.unreachable('Debería haber lanzado error 401');
+    } catch (err: any) {
+      expect(mockHandler).not.toHaveBeenCalled();
+      expect(err.status).toBe(401);
+    }
+  });
+
+  it('Test 2b: Interceptor NO invoca handler para /auth/admin/login con 401', async () => {
+    const mockHandler = vi.fn();
+    const client = new ApiClient('http://localhost:3000');
+    client.setUnauthorizedHandler(mockHandler);
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+        json: () => Promise.resolve({ error: 'Invalid credentials' }),
+      }),
+    );
+
+    try {
+      await client.post('/auth/admin/login', { email: 'admin@test.com', password: 'wrong' });
+      expect.unreachable('Debería haber lanzado error 401');
+    } catch (err: any) {
+      expect(mockHandler).not.toHaveBeenCalled();
+      expect(err.status).toBe(401);
+    }
+  });
+});
+
+describe('Scenario: Document downloads via apiClient preserve interceptor coverage', () => {
+  it('Test 5: downloadBlob retorna Blob en success (2xx)', async () => {
+    const blobData = new Blob(['test document'], { type: 'application/pdf' });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        blob: () => Promise.resolve(blobData),
+      }),
+    );
+
+    const client = new ApiClient('http://localhost:3000');
+    const result = await client.downloadBlob('/uploads/document/123');
+
+    expect(result).toBeInstanceOf(Blob);
+    expect(result.type).toBe('application/pdf');
+  });
+
+  it('Test 6: downloadBlob invoca handler en 401 y relanza', async () => {
+    const mockHandler = vi.fn();
+    const client = new ApiClient('http://localhost:3000');
+    client.setUnauthorizedHandler(mockHandler);
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+      }),
+    );
+
+    try {
+      await client.downloadBlob('/uploads/document/secure');
+      expect.unreachable('Debería haber lanzado error 401');
+    } catch (err: any) {
+      expect(mockHandler).toHaveBeenCalledTimes(1);
+      expect(err.status).toBe(401);
+    }
+  });
+});
